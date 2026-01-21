@@ -2,6 +2,8 @@
 
 Real-time worker productivity monitoring powered by AI computer vision for manufacturing facilities.
 
+[🔥Live Demo](https://ai-powered-productivity-dashboard.lovable.app)
+
 ## 🏭 Architecture Overview
 
 ```
