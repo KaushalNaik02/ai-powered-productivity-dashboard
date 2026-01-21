@@ -60,9 +60,12 @@ Edge Cameras (CV) → Backend API → Database → Dashboard
 
 ## 🔧 API Endpoints
 
-### POST /functions/v1/ingest-event
+Base URL: `https://eaxxurfumbosqdkgrrnx.supabase.co/functions/v1`
+
+### POST /ingest-event
 Ingest AI event from CCTV system.
 
+**Request:**
 ```json
 {
   "timestamp": "2026-01-15T10:15:00Z",
@@ -72,6 +75,80 @@ Ingest AI event from CCTV system.
   "confidence": 0.93,
   "count": 1
 }
+```
+
+**Response (201):**
+```json
+{
+  "message": "Event ingested",
+  "id": "uuid-of-created-event"
+}
+```
+
+### POST /generate-dummy-data
+Generate/refresh dummy data for testing. Clears existing events and creates 576 new events (8 hours × 6 workers).
+
+**Request:** No body required
+
+**Response (200):**
+```json
+{
+  "message": "Dummy data generated successfully",
+  "events_created": 576
+}
+```
+
+**Example (curl):**
+```bash
+curl -X POST https://eaxxurfumbosqdkgrrnx.supabase.co/functions/v1/generate-dummy-data
+```
+
+### GET /get-metrics
+Fetch computed productivity metrics for all workers and workstations.
+
+**Response (200):**
+```json
+{
+  "factory": {
+    "total_workers": 6,
+    "active_workers": 4,
+    "total_workstations": 6,
+    "active_workstations": 6,
+    "overall_utilization": 72,
+    "total_units_produced": 145,
+    "total_events": 576,
+    "avg_confidence": 92
+  },
+  "workers": [
+    {
+      "worker_id": "W1",
+      "name": "John Smith",
+      "total_active_minutes": 240,
+      "total_idle_minutes": 80,
+      "utilization_percentage": 75,
+      "total_units_produced": 24,
+      "units_per_hour": 6.0,
+      "last_event_type": "working"
+    }
+  ],
+  "workstations": [
+    {
+      "station_id": "S1",
+      "name": "Assembly Line A",
+      "type": "assembly",
+      "total_active_minutes": 200,
+      "total_idle_minutes": 100,
+      "utilization_percentage": 67,
+      "total_units_produced": 35,
+      "unique_workers": 3
+    }
+  ]
+}
+```
+
+**Example (curl):**
+```bash
+curl https://eaxxurfumbosqdkgrrnx.supabase.co/functions/v1/get-metrics
 ```
 
 ## 🛡️ Handling Edge Cases
