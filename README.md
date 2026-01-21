@@ -119,7 +119,34 @@ Ingest AI event from CCTV system.
 - Distribution shift: retrain when event ratios change significantly
 - Scheduled: weekly retraining with latest labeled data
 
-## 🏃 Running Locally
+## 🐳 Docker Deployment
+
+### Production Build
+```bash
+# Build and run with Docker Compose
+docker-compose up --build
+
+# Access at http://localhost:3000
+```
+
+### Development Mode
+```bash
+# Run with hot reload
+docker-compose --profile dev up dashboard-dev
+
+# Access at http://localhost:8080
+```
+
+### Manual Docker Build
+```bash
+# Build image
+docker build -t worker-dashboard .
+
+# Run container
+docker run -p 3000:80 worker-dashboard
+```
+
+## 🏃 Running Locally (without Docker)
 
 ```bash
 # Install dependencies
