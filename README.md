@@ -1,73 +1,141 @@
-# Welcome to your Lovable project
+# AI-Powered Worker Productivity Dashboard
 
-## Project info
+Real-time worker productivity monitoring powered by AI computer vision for manufacturing facilities.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## 🏭 Architecture Overview
 
-## How can I edit this code?
+```
+Edge Cameras (CV) → Backend API → Database → Dashboard
+     ↓                  ↓            ↓           ↓
+  AI Events      Edge Functions   Postgres    React App
+```
 
-There are several ways of editing your application.
+### Components
+- **Frontend**: React + TypeScript + Tailwind CSS + shadcn/ui
+- **Backend**: Supabase Edge Functions (Deno)
+- **Database**: PostgreSQL (Supabase)
+- **Real-time**: Supabase Realtime subscriptions
 
-**Use Lovable**
+## 📊 Database Schema
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+### Workers Table
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| worker_id | TEXT | Unique identifier (W1-W6) |
+| name | TEXT | Worker name |
 
-Changes made via Lovable will be committed automatically to this repo.
+### Workstations Table
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| station_id | TEXT | Unique identifier (S1-S6) |
+| name | TEXT | Station name |
+| type | TEXT | assembly, inspection, packaging, welding, machining |
 
-**Use your preferred IDE**
+### AI Events Table
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| timestamp | TIMESTAMPTZ | Event time |
+| worker_id | TEXT | Foreign key to workers |
+| workstation_id | TEXT | Foreign key to workstations |
+| event_type | TEXT | working, idle, absent, product_count |
+| confidence | NUMERIC | AI confidence score (0-1) |
+| count | INTEGER | Units produced (for product_count) |
+| event_hash | TEXT | Unique hash for deduplication |
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 📈 Metric Definitions
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Worker Metrics
+- **Total Active Time**: Sum of 5-min intervals where event_type = 'working'
+- **Total Idle Time**: Sum of 5-min intervals where event_type = 'idle'
+- **Utilization %**: (Active Time / (Active + Idle)) × 100
+- **Units Produced**: Sum of count for product_count events
+- **Units/Hour**: Units Produced / Active Hours
 
-Follow these steps:
+### Workstation Metrics
+- Same as worker metrics, grouped by workstation
+- **Unique Workers**: Count of distinct workers at station
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## 🔧 API Endpoints
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### POST /functions/v1/ingest-event
+Ingest AI event from CCTV system.
 
-# Step 3: Install the necessary dependencies.
-npm i
+```json
+{
+  "timestamp": "2026-01-15T10:15:00Z",
+  "worker_id": "W1",
+  "workstation_id": "S3",
+  "event_type": "working",
+  "confidence": 0.93,
+  "count": 1
+}
+```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+## 🛡️ Handling Edge Cases
+
+### Intermittent Connectivity
+- Events are stored with timestamps from the edge device
+- Database accepts out-of-order events; metrics computed from timestamp
+- Idempotent ingestion prevents duplicates on retry
+
+### Duplicate Events
+- Each event has a unique `event_hash` (timestamp + worker + station + type)
+- Database has UNIQUE constraint on event_hash
+- API returns 200 for duplicates instead of error
+
+### Out-of-Order Timestamps
+- Events sorted by timestamp in queries, not insertion order
+- Metrics computation is timestamp-agnostic
+- Dashboard always shows chronologically correct data
+
+## 🚀 Scaling Considerations
+
+### 5 → 100+ Cameras
+- Add database indexing on timestamp, worker_id, workstation_id
+- Implement batch ingestion endpoint for bulk events
+- Add connection pooling (PgBouncer)
+
+### Multi-Site Deployment
+- Add `site_id` column to all tables
+- Partition ai_events table by site_id
+- Deploy edge functions per region
+- Consider time-series database (TimescaleDB) for events
+
+### Model Versioning
+- Add `model_version` column to events table
+- Store model metadata in separate models table
+- Track performance metrics per model version
+
+### Drift Detection
+- Compare confidence distributions over time
+- Alert when avg confidence drops below threshold
+- Monitor event type distribution changes
+
+### Retraining Triggers
+- Confidence threshold: retrain when avg < 85%
+- Distribution shift: retrain when event ratios change significantly
+- Scheduled: weekly retraining with latest labeled data
+
+## 🏃 Running Locally
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Dashboard loads at http://localhost:8080
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Click "Generate Data" to populate with sample events.
 
-**Use GitHub Codespaces**
+## 📝 Assumptions & Tradeoffs
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+1. **5-minute event intervals**: Each event represents 5 minutes of activity
+2. **Public API access**: For demo purposes; production would use API keys
+3. **Client-side metrics**: Computed in browser; production would use database views
+4. **No authentication**: Factory dashboard is internal; production would add auth
